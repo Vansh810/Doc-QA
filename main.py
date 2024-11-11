@@ -1,37 +1,70 @@
+import os
+import tkinter as tk
+from tkinter import filedialog
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.llms import HuggingFaceHub
 from langchain.chains import RetrievalQA
-import os
+from dotenv import load_dotenv
 
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
+# Set up the Hugging Face API token
+load_dotenv()
+api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+if not api_key:
+    raise ValueError("HUGGINGFACEHUB_API_TOKEN environment variable not set")
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = api_key
 
-# Load a text document; replace 'your_file.txt' with the path to your document.
-loader = TextLoader("lily.txt")
-documents = loader.load()
+# Initialize Tkinter and hide the root window
+root = tk.Tk()
+root.withdraw()  # Hide the root window as we just need the file dialog
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-docs = text_splitter.split_documents(documents)
-
-# Initialize the OpenAI embedding model
-embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vector_store = Chroma.from_documents(docs, embedding)
-
-# Initialize the language model
-llm = HuggingFaceHub(
-    repo_id="google/flan-t5-base",
-    model_kwargs={"max_length": 512,
-                  "min_length": 25,
-                  "temperature": 0.6
-                  }
+# Ask the user to select a document manually
+file_path = filedialog.askopenfilename(
+    title="Select a Document",
+    filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
 )
 
-# Create a Retrieval-based QA chain
-qa_chain = RetrievalQA.from_chain_type(llm, chain_type="stuff", retriever=vector_store.as_retriever())
+# Ensure a file was selected
+if file_path:
+    print(f"Document selected: {file_path}")
 
-query = "Describe Lily Of The Valley in detail"
-answer = qa_chain.run(query)
+    # Load the selected document
+    loader = TextLoader(file_path)
+    documents = loader.load()
 
-print(answer)
+    # Split the document into chunks
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    docs = text_splitter.split_documents(documents)
+
+    # Initialize the embedding model
+    embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vector_store = Chroma.from_documents(docs, embedding)
+
+    # Initialize the language model
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-large",
+        model_kwargs={
+            "max_length": 512,
+            "min_length": 50,
+            "temperature": 0.75
+        }
+    )
+
+    # Create the Retrieval-based QA chain
+    qa_chain = RetrievalQA.from_chain_type(
+        llm,
+        chain_type="stuff",
+        retriever=vector_store.as_retriever()
+    )
+
+    # Start the query loop
+    query = input("Enter query: ")
+    while query.lower() != 'bye':
+        answer = qa_chain.invoke(query)['result']
+        print(answer)
+        query = input("Enter query: ")
+
+else:
+    print("No file selected. Exiting.")
