@@ -39,7 +39,7 @@ if file_path:
     splits = text_splitter.split_documents(documents)
 
     # Initialize the embedding model
-    embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L12-v2")
     vector_store = Chroma.from_documents(splits, embedding)
 
     # Initialize the language model
@@ -47,8 +47,10 @@ if file_path:
         repo_id="google/flan-t5-large",
         model_kwargs={
             "max_length": 512,
-            "min_length": 32,
-            "temperature": 0.25
+            "min_length": 16,
+            "temperature": 0.25,
+            "num_beams": 3,
+            "repetition_penalty": 1.1
         }
     )
 
