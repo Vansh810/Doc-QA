@@ -1,11 +1,11 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
-from langchain.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.llms import HuggingFaceHub
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_community.llms import HuggingFaceHub
 from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 
@@ -23,7 +23,7 @@ root.withdraw()  # Hide the root window as we just need the file dialog
 # Ask the user to select a document manually
 file_path = filedialog.askopenfilename(
     title="Select a Document",
-    filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
+    filetypes=(("Text files", "*.txt"), ("PDF files", "*.pdf"), ("All files", "*.*"))
 )
 
 # Ensure a file was selected
@@ -31,7 +31,7 @@ if file_path:
     print(f"Document selected: {file_path}")
 
     # Load the selected document
-    loader = TextLoader(file_path)
+    loader = TextLoader(file_path) if file_path.endswith('.txt') else PyPDFLoader(file_path)
     documents = loader.load()
 
     # Split the document into chunks
@@ -46,16 +46,16 @@ if file_path:
     llm = HuggingFaceHub(
         repo_id="google/flan-t5-large",
         model_kwargs={
-            "max_length": 100,
-            "min_length": 15,
-            "temperature": 0
+            "max_length": 512,
+            "min_length": 32,
+            "temperature": 0.25
         }
     )
 
     # Create the Retrieval-based QA chain
     qa_chain = RetrievalQA.from_chain_type(
         llm,
-        chain_type="map_reduce",
+        chain_type="stuff",
         retriever=vector_store.as_retriever()
     )
 
