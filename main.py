@@ -35,27 +35,27 @@ if file_path:
     documents = loader.load()
 
     # Split the document into chunks
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    docs = text_splitter.split_documents(documents)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=10, separators=['\n\n', '\n', '.', ''])
+    splits = text_splitter.split_documents(documents)
 
     # Initialize the embedding model
     embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_store = Chroma.from_documents(docs, embedding)
+    vector_store = Chroma.from_documents(splits, embedding)
 
     # Initialize the language model
     llm = HuggingFaceHub(
         repo_id="google/flan-t5-large",
         model_kwargs={
-            "max_length": 512,
-            "min_length": 50,
-            "temperature": 0.75
+            "max_length": 100,
+            "min_length": 15,
+            "temperature": 0
         }
     )
 
     # Create the Retrieval-based QA chain
     qa_chain = RetrievalQA.from_chain_type(
         llm,
-        chain_type="stuff",
+        chain_type="map_reduce",
         retriever=vector_store.as_retriever()
     )
 
